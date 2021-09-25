@@ -1,16 +1,27 @@
-import math
+import math, random
 import numpy as np
 
 threshold = 0.01
 num_overtones = 8
+num_neighbors = 8
 
 def calculate_neighbors(center, radius):
-    re = [center]
-    if radius > threshold:
-        for i in range(4):
-            re += [[min(center[j] + (radius if i == j else 0), 1) for j in range(4)], \
-                [max(center[j] - (radius if i == j else 0), 0) for j in range(4)]]
+    # re = [center]
+    # if radius > threshold:
+    #     for i in range(4):
+    #         re += [[min(center[j] + (radius if i == j else 0), 1) for j in range(4)], \
+    #             [max(center[j] - (radius if i == j else 0), 0) for j in range(4)]]
+    # return re
+
+    re = [[c for c in center]]
+    if radius > threshold: 
+        for i in range(len(center)):
+            if center[i] + radius - 1 > 0: center[i] -= (center[i] + radius - 1) 
+            elif center[i] - radius < 0: center[i] -= (center[i] - radius)
+        for _ in range(num_neighbors):
+            re.append([c+random.random() * radius for c in center])
     return re
+    
 
 def calculate_intensities(v):
     #v = [e*2 - 1 for e in v]
@@ -36,6 +47,7 @@ def calculate_intensities(v):
     reedy_vector = [0.3 if i == 6 or i == 9 else (0.4 if i == 7 or i == 8 else 0) for i in range(num_overtones)]
     matrix = np.array([depth_vector, even_depth_vector, reedy_vector])
     intensities = np.matmul(v[1:], matrix)
+    intensities[0] = 1
 
     a = 0.001 + 0.8*v[0]
     envelope = lambda x: (x/a if x < a else (1-x)/(1-a))
@@ -43,7 +55,7 @@ def calculate_intensities(v):
 
 if __name__ == "__main__":
     center = [0]*4
-    radius = 1
+    radius = 0.5
     centers = calculate_neighbors(center, radius)
     while(len(centers) > 1):
         for i in range(len(centers)):
