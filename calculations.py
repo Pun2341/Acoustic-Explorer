@@ -13,6 +13,7 @@ def neighbors(center, radius):
     return re
 
 def overtones_from_vec(v):
+    pass
     #v = [e*2 - 1 for e in v]
     #re = []
     #for n in range(1, num_overtones):
@@ -24,12 +25,14 @@ def overtones_from_vec(v):
         # re.append(y)
     #return re
 
-    basis = np.array([ \
-        [1/(n+1) for n in range(num_overtones)], \
-        [1/(n+1) if n % 2 == 0 else 0 for n in range(num_overtones)], \
-        [1/(n+1) if n % 3 == 0 else 0 for n in range(num_overtones)], \
-        [1/(n+1) if n % 4 == 0 else 0 for n in range(num_overtones)]])
-    return np.matmul(v, basis)
+    # basis = np.array([ \
+    #     [1/(n+1) for n in range(num_overtones)], \
+    #     [1/(n+1) if n % 2 == 0 else 0 for n in range(num_overtones)], \
+    #     [1/(n+1) if n % 3 == 0 else 0 for n in range(num_overtones)], \
+    #     [1/(n+1) if n % 4 == 0 else 0 for n in range(num_overtones)]])
+    # return np.matmul(v, basis)
+
+
 
 def neighbor_test():
     center = [0]*4
