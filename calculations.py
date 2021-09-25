@@ -12,8 +12,7 @@ def neighbors(center, radius):
                 [max(center[j] - (radius if i == j else 0), 0) for j in range(5)]]
     return re
 
-def overtones_from_vec(v):
-    pass
+def calculate_intensities(v):
     #v = [e*2 - 1 for e in v]
     #re = []
     #for n in range(1, num_overtones):
@@ -32,7 +31,9 @@ def overtones_from_vec(v):
     #     [1/(n+1) if n % 4 == 0 else 0 for n in range(num_overtones)]])
     # return np.matmul(v, basis)
 
-    a = 0.001 + 0.6*v[0]
+    intensities = []
+
+    a = 0.001 + 0.8*v[0]
     envelope = lambda x: (x/a if x < a else (1-x)/(1-a))
     return intensities, envelope
 

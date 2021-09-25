@@ -10,7 +10,7 @@ pygame.mixer.init(channels=1)
 sample_rate = 44100
 volume = 4096
 duration = 1
-double_mixer = False
+double_mixer = True
 
 def sine_wave(hz, peak, n_samples=sample_rate):
     """Compute N samples of a sine wave with given frequency and peak amplitude.
