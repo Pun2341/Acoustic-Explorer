@@ -1,2 +1,3 @@
 .DS_Store
 *.swp
+__pycache__/calculations.cpython-38.pyc
