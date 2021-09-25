@@ -22,13 +22,21 @@ NUM_OCTAVES = 2
 #  0 is C, from then on all evens are white keys 
 #   and odds are black keys. Cannot be higher than 12.
 #  Also B# and E# also known as 13 and 5 do not exist!!
+# Thomas' system: 1 num = 1 half step
+# So, need to return x but subtract given 5 and 13
+# This returns the number of half-steps up x is
 def piano_key_of_int(x):
-    assert x != 5 and x < 13, "piano key OOB"
-    # LATER: this will probably not be a string 
-    c = "ccddeffggaab"[x]
-    if x % 2 == 0:
-        return c + "#"
-    return c
+    # we'll subtract 2 for each octave (which contains 2 non-notes)
+    octave_num = x // 14
+    octave_x = x % 14
+    assert octave_x != 5 and octave_x != 13, "input can't be 5 or 13"
+    # also 1 for 5, and 1 for 13
+    if octave_x > 13:
+        x -= 1
+    if octave_x > 5:
+        x -= 1
+    x -= octave_num * 2
+    return x
 
 def clear_screen(renderer):
     SDL_SetRenderDrawColor(renderer, BGCOLOR[0], BGCOLOR[1], BGCOLOR[2], 255);
@@ -131,4 +139,6 @@ def main():
     SDL_DestroyRenderer(renderer)
     SDL_DestroyWindow(window)
     SDL_Quit()
-main()
+
+if __name__ == "__main__":
+    main()
