@@ -36,10 +36,15 @@ def waveform(intensities, note):
         waveform = np.add(waveform, sine_wave(pitch * (i+2), volume * intensities[i]))
     #waveform = (waveform*volume)//max(abs(waveform))
     return waveform
+
+def play(v, note): 
+    play_for(waveform(calculations.overtones_from_vec(v),note), int(1000*duration))
     	
-i = calculations.overtones_from_vec([0.5,0.5,0.6,0.5])
+i = list(calculations.overtones_from_vec([1,0,0,1]))
+print(i)
 w = waveform(i, 0)
-play_for(w,int(1000*duration))
+print(w)
+play_for(w, int(1000*duration))
 _, axs = plt.subplots(2)
 axs[0].plot(w[:324])
 axs[1].bar(range(len(i)+1), [1]+i)
