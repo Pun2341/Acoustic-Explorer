@@ -5,6 +5,8 @@ from calculations import calculate_neighbors
 from random import random
 import math 
 
+RADIUS_FACTOR = 0.8
+
 WINDOW_HEIGHT = 860
 WINDOW_WIDTH = 1000
 BGCOLOR = [0, 100, 255]
@@ -72,9 +74,7 @@ def generate_neighbors_list(wheel_focus, radius):
     angle_increment = math.radians(360 / NUM_NEIGHBORS)
     fx, fy, _ = WHEEL_FOCUS
     vector_neighbors = calculate_neighbors(wheel_vector, radius)
-    print(wheel_vector)
-    print(len(vector_neighbors))
-    for i in range(num_neighbors):
+    for i in range(NUM_NEIGHBORS):
         angle = angle_increment * i
         x = int(WHEEL_RADIUS * math.cos(angle)) + fx
         y = int(WHEEL_RADIUS * math.sin(angle)) + fy
@@ -203,17 +203,23 @@ def calc_wheel_click(clickx, clicky, wheel):
 def focus_of_vec(vec):
     return [WHEEL_FOCUS, vec]
 
-def create_waveform_matrix():
-    pass
+def create_waveform_matrix(wheel):
+    return [[None for n in range(12 * NUM_OCTAVES)] for w in range(len(wheel))]
+
+def waveform_lookup(wv_mat, wheel, w, n):
+    if wv_mat[w][n] == None:
+        wv_mat[w][n] = calculate_sound(wheel[w][1], n)
+    return wv_mat[w][n]
 
 def loop(renderer):
-    radius = 1
+    radius = 0.5
     pressed_piano_key = -1
     event = SDL_Event()
     piano_sound_queue = []
     wheel_focus = focus_of_vec([0] * 4)
     neighbors = generate_neighbors_list(wheel_focus, radius)
     wheel = [wheel_focus] + neighbors
+    waveform_matrix = create_waveform_matrix(wheel)
     wheel_highlight = 0
     while True:
         while SDL_PollEvent(ctypes.byref(event)) != 0:
@@ -225,7 +231,7 @@ def loop(renderer):
                 pressed_piano_key = calc_piano_key_pressed(butx, buty)
                 if pressed_piano_key != -1:
                     note = calc_piano_key(pressed_piano_key)
-                    sound = calculate_sound(wheel[wheel_highlight][1], note)
+                    sound = waveform_lookup(waveform_matrix, wheel, wheel_highlight, note)
                     piano_sound_queue.insert(0, [sound, pressed_piano_key, 0])
                     piano_sound_queue[0][0].play(-1)
 
@@ -235,10 +241,11 @@ def loop(renderer):
 
                 # Check buttons
                 if in_rect(NEW_NEIGHBORS, butx, buty):
-                    radius /= 2
+                    radius *= RADIUS_FACTOR
                     wheel_focus = focus_of_vec(wheel[wheel_highlight][1])
                     neighbors = generate_neighbors_list(wheel_focus, radius)
                     wheel = [wheel_focus] + neighbors
+                    waveform_matrix = create_waveform_matrix(wheel)
 
                 
 
