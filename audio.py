@@ -10,7 +10,7 @@ pygame.mixer.init(channels=1)
 sample_rate = 44100
 volume = 4096
 duration = 1
-double_mixer = True
+double_mixer = False
 
 def sine_wave(hz, peak, n_samples=sample_rate):
     """Compute N samples of a sine wave with given frequency and peak amplitude.
@@ -41,7 +41,9 @@ def calculate_waveform(intensities, envelope, note):
 def calculate_sound(v, note):
     intensities, envelope = calculations.calculate_intensities(v)
     waveform = calculate_waveform(intensities, envelope, note)
-    if double_mixer: waveform = np.array([(a,a) for a in waveform])
+    #if double_mixer: waveform = np.array([(a,a) for a in waveform])
+    #else:
+    waveform = np.array([np.int32(a) for a in waveform])
     sound = pygame.sndarray.make_sound(waveform)
     return sound
     
@@ -60,7 +62,12 @@ if __name__ == "__main__":
     #     return (1-x)/(1-a)
     w = calculate_waveform(i, e, 0)
     print(w)
-    sound = pygame.sndarray.make_sound(np.array([(a,a) for a in w]))
+    #sound = pygame.sndarray.make_sound(np.array([(a,a) for a in w]))
+    asdfasdf = np.array([np.int32(a) for a in w])
+    print(type(asdfasdf[100]))
+    print('a')
+    sound = pygame.sndarray.make_sound(asdfasdf)
+    print('b')
     sound.play(-1)
     _, axs = plt.subplots(2)
     axs[0].plot(w)

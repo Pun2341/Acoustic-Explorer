@@ -1,6 +1,7 @@
 import ctypes
 from sdl2 import *
-from audio import calculate_sound
+from audio import calculate_sound 
+from calculations import calculate_neighbors
 from random import random
 import math 
 
@@ -21,12 +22,12 @@ BLACK_KEY_DIMS = [30, 110]
 NUM_OCTAVES = 2
 
 FRAME_DURATION = 60 # in milliseconds
-SOUND_FRAME_DURATION = int(0.4 * (1000 / FRAME_DURATION))
+SOUND_FRAME_DURATION = int(0.35 * (1000 / FRAME_DURATION))
 
 TESTVECTOR = [random(), random(), random(), random()]
 
 # Spokes
-INITIAL_NUM_NEIGHBORS = 8
+NUM_NEIGHBORS = 8
 NEIGHBOR_RADIUS = 30
 # Circles will be a tuple (x, y, r)
 WHEEL_FOCUS = (WINDOW_WIDTH // 2, 300, 30)
@@ -35,6 +36,9 @@ WHEEL_RADIUS = 150
 
 HIGHLIGHT_COLOR = [192, 243, 27]
 HIGHLIGHT_EXTRA_RADIUS = 20
+
+NEW_NEIGHBORS = (50, 50, 200, 150)
+NEW_NEIGHBORS_COLOR = [200, 150, 20]
 
 def color_of_feature_vector(feature_vector):
     not_first_fv = feature_vector[1:]
@@ -58,21 +62,28 @@ def calc_piano_key(x):
     key -= (octave_num * 2) + int(octave_x > 13) + int(octave_x > 5)
     return key
 
-def generate_neighbors_list(num_neighbors):
+def generate_neighbors_list(wheel_focus, radius):
     """ 
     Generates neighbors list but puts in some empty or test vector
     for the feature vector component. Just calculates locations.
     """
-    if num_neighbors == 0: return [] # avoid divide by zero
+    wheel_vector = wheel_focus[1]
     neighbors = []
-    angle_increment = math.radians(360 / num_neighbors)
+    angle_increment = math.radians(360 / NUM_NEIGHBORS)
     fx, fy, _ = WHEEL_FOCUS
+    vector_neighbors = calculate_neighbors(wheel_vector, radius)
+    print(wheel_vector)
+    print(len(vector_neighbors))
     for i in range(num_neighbors):
         angle = angle_increment * i
         x = int(WHEEL_RADIUS * math.cos(angle)) + fx
         y = int(WHEEL_RADIUS * math.sin(angle)) + fy
-        neighbors.append([(x, y, NEIGHBOR_RADIUS), [random(), random(), random(), random()]])
+        neighbors.append([(x, y, NEIGHBOR_RADIUS), vector_neighbors[i]])
     return neighbors
+
+def in_rect(rec, clickx, clicky):
+    x, y, w, h = rec
+    return x < clickx < x + w and y < clicky < y + h
 
 def clear_screen(renderer):
     SDL_SetRenderDrawColor(renderer, BGCOLOR[0], BGCOLOR[1], BGCOLOR[2], 255);
@@ -109,6 +120,12 @@ def draw_wheel(renderer, wheel, highlight_idx):
             draw_circle(renderer, x, y, r + HIGHLIGHT_EXTRA_RADIUS, color)
         color = color_of_feature_vector(ls[1])
         draw_circle(renderer, x, y, r, color)
+
+def fill_rect(renderer, rec, color):
+    x, y, w, h = rec
+    r, g, b = color
+    SDL_SetRenderDrawColor(renderer, r, g, b, 255) # black border
+    SDL_RenderFillRect(renderer, SDL_Rect(x, y, w, h))
 
 def fill_piano_rect(renderer, x, y, is_white, is_played):
     w, h = WHITE_KEY_DIMS if is_white else BLACK_KEY_DIMS
@@ -183,15 +200,20 @@ def calc_wheel_click(clickx, clicky, wheel):
             return i
     return -1
 
+def focus_of_vec(vec):
+    return [WHEEL_FOCUS, vec]
+
 def create_waveform_matrix():
     pass
 
 def loop(renderer):
+    radius = 1
     pressed_piano_key = -1
     event = SDL_Event()
     piano_sound_queue = []
-    wheel_focus = [WHEEL_FOCUS, TESTVECTOR]
-    wheel = [wheel_focus] + generate_neighbors_list(INITIAL_NUM_NEIGHBORS)
+    wheel_focus = focus_of_vec([0] * 4)
+    neighbors = generate_neighbors_list(wheel_focus, radius)
+    wheel = [wheel_focus] + neighbors
     wheel_highlight = 0
     while True:
         while SDL_PollEvent(ctypes.byref(event)) != 0:
@@ -206,9 +228,19 @@ def loop(renderer):
                     sound = calculate_sound(wheel[wheel_highlight][1], note)
                     piano_sound_queue.insert(0, [sound, pressed_piano_key, 0])
                     piano_sound_queue[0][0].play(-1)
-                # Check clicking on wheel TODO 
+
+                # Check clicking on wheel 
                 new_highlight = calc_wheel_click(butx, buty, wheel)
                 if new_highlight != -1: wheel_highlight = new_highlight
+
+                # Check buttons
+                if in_rect(NEW_NEIGHBORS, butx, buty):
+                    radius /= 2
+                    wheel_focus = focus_of_vec(wheel[wheel_highlight][1])
+                    neighbors = generate_neighbors_list(wheel_focus, radius)
+                    wheel = [wheel_focus] + neighbors
+
+                
 
         if len(piano_sound_queue) != 0:
             if piano_sound_queue[-1][2] < SOUND_FRAME_DURATION:
@@ -220,6 +252,7 @@ def loop(renderer):
         clear_screen(renderer)
         draw_piano(renderer, piano_sound_queue)
         draw_wheel(renderer, wheel, wheel_highlight)
+        fill_rect(renderer, NEW_NEIGHBORS, NEW_NEIGHBORS_COLOR)
         SDL_RenderPresent(renderer)
         SDL_Delay(FRAME_DURATION)
 

@@ -4,12 +4,12 @@ import numpy as np
 threshold = 0.01
 num_overtones = 8
 
-def neighbors(center, radius):
+def calculate_neighbors(center, radius):
     re = [center]
     if radius > threshold:
-        for i in range(5):
-            re += [[min(center[j] + (radius if i == j else 0), 1) for j in range(5)], \
-                [max(center[j] - (radius if i == j else 0), 0) for j in range(5)]]
+        for i in range(4):
+            re += [[min(center[j] + (radius if i == j else 0), 1) for j in range(4)], \
+                [max(center[j] - (radius if i == j else 0), 0) for j in range(4)]]
     return re
 
 def calculate_intensities(v):
@@ -44,11 +44,11 @@ def calculate_intensities(v):
 if __name__ == "__main__":
     center = [0]*4
     radius = 1
-    centers = neighbors(center, radius)
+    centers = calculate_neighbors(center, radius)
     while(len(centers) > 1):
         for i in range(len(centers)):
             print(str(i)+": "+str(centers[i]))
         i = int(input(": "))
         radius = radius / 2
-        centers = neighbors(centers[i], radius)
+        centers = calculate_neighbors(centers[i], radius)
     print(centers)
