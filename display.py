@@ -2,13 +2,14 @@ import ctypes
 from sdl2 import *
 from audio import calculate_sound
 from random import random
+import math 
 
 WINDOW_HEIGHT = 860
 WINDOW_WIDTH = 1000
 BGCOLOR = [0, 100, 255]
 
 # PIANO STUFF
-PIANO_LOCATION = [50, 600]
+PIANO_LOCATION = [120, 600]
 
 WHITE_PIANO_COLOR = [255, 255, 255]
 BLACK_PIANO_COLOR = [0, 0, 0]
@@ -23,7 +24,22 @@ FRAME_DURATION = 60 # in milliseconds
 SOUND_FRAME_DURATION = int(0.4 * (1000 / FRAME_DURATION))
 
 TESTVECTOR = [random(), random(), random(), random()]
-print(TESTVECTOR)
+
+# Spokes
+INITIAL_NUM_NEIGHBORS = 8
+NEIGHBOR_RADIUS = 30
+# Circles will be a tuple (x, y, r)
+WHEEL_FOCUS = (WINDOW_WIDTH // 2, 300, 30)
+# Wheel will be a list of [c, v] where c is a circle and v a feature vector
+WHEEL_RADIUS = 150
+
+HIGHLIGHT_COLOR = [192, 243, 27]
+HIGHLIGHT_EXTRA_RADIUS = 20
+
+def color_of_feature_vector(feature_vector):
+    not_first_fv = feature_vector[1:]
+    reverse_fv = not_first_fv[::-1]
+    return [int(255 * n) for n in reverse_fv] 
 
 # INT TO PIANO KEY MAPPING:
 #  0 is C, from then on all evens are white keys 
@@ -42,18 +58,66 @@ def calc_piano_key(x):
     key -= (octave_num * 2) + int(octave_x > 13) + int(octave_x > 5)
     return key
 
+def generate_neighbors_list(num_neighbors):
+    """ 
+    Generates neighbors list but puts in some empty or test vector
+    for the feature vector component. Just calculates locations.
+    """
+    if num_neighbors == 0: return [] # avoid divide by zero
+    neighbors = []
+    angle_increment = math.radians(360 / num_neighbors)
+    fx, fy, _ = WHEEL_FOCUS
+    for i in range(num_neighbors):
+        angle = angle_increment * i
+        x = int(WHEEL_RADIUS * math.cos(angle)) + fx
+        y = int(WHEEL_RADIUS * math.sin(angle)) + fy
+        neighbors.append([(x, y, NEIGHBOR_RADIUS), [random(), random(), random(), random()]])
+    return neighbors
+
 def clear_screen(renderer):
     SDL_SetRenderDrawColor(renderer, BGCOLOR[0], BGCOLOR[1], BGCOLOR[2], 255);
     SDL_RenderClear(renderer);
 
+def drawpixel(renderer, x, y, pixel_dims=[1,1]):
+    SDL_RenderFillRect(renderer, SDL_Rect(x, y, pixel_dims[0], pixel_dims[1]))
+
+def hypotenuse(a, b):
+    return math.sqrt(math.pow(a, 2) + math.pow(b, 2))
+
+def in_circle(centerx, centery, radius, x, y):
+    distance = hypotenuse(x - centerx, y - centery)
+    return distance < radius
+
+# Color should be a list [r, g, b] of 3 nums
+def draw_circle(renderer, centerx, centery, radius, color):
+    r, g, b = color
+    diameter = radius * 2
+    startx, starty = centerx - radius, centery - radius
+    for x in range(diameter):
+        for y in range(diameter):
+            drawx, drawy = x + startx, y + starty
+            if in_circle(centerx, centery, radius, drawx, drawy):
+                SDL_SetRenderDrawColor(renderer, r, g, b, 255) 
+                drawpixel(renderer, drawx, drawy)
+
+def draw_wheel(renderer, wheel, highlight_idx):
+    for i in range(len(wheel)):
+        ls = wheel[i]
+        x, y, r = ls[0]
+        if i == highlight_idx:
+            color = HIGHLIGHT_COLOR
+            draw_circle(renderer, x, y, r + HIGHLIGHT_EXTRA_RADIUS, color)
+        color = color_of_feature_vector(ls[1])
+        draw_circle(renderer, x, y, r, color)
+
 def fill_piano_rect(renderer, x, y, is_white, is_played):
     w, h = WHITE_KEY_DIMS if is_white else BLACK_KEY_DIMS
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); # black border
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255) # black border
     SDL_RenderDrawRect(renderer, SDL_Rect(x - 1, y - 1, w + 2, h + 2))
 
-    c1, c2, c3 = ((WHITE_PIANO_COLOR if is_white else BLACK_PIANO_COLOR) 
+    r, g, b = ((WHITE_PIANO_COLOR if is_white else BLACK_PIANO_COLOR) 
                     if not is_played else PLAYED_PIANO_COLOR)
-    SDL_SetRenderDrawColor(renderer, c1, c2, c3, 255)
+    SDL_SetRenderDrawColor(renderer, r, g, b, 255)
     SDL_RenderFillRect(renderer, SDL_Rect(x, y, w, h))
 
 def calc_piano_key_x(n, x):
@@ -112,23 +176,39 @@ def calc_piano_key_pressed(x, y):
                     blackkey = i
     return blackkey if blackkey != -1 else whitekey
 
+def calc_wheel_click(clickx, clicky, wheel):
+    for i in range(len(wheel)):
+        centerx, centery, r = wheel[i][0]
+        if in_circle(centerx, centery, r, clickx, clicky):
+            return i
+    return -1
+
+def create_waveform_matrix():
+    pass
+
 def loop(renderer):
     pressed_piano_key = -1
     event = SDL_Event()
     piano_sound_queue = []
+    wheel_focus = [WHEEL_FOCUS, TESTVECTOR]
+    wheel = [wheel_focus] + generate_neighbors_list(INITIAL_NUM_NEIGHBORS)
+    wheel_highlight = 0
     while True:
         while SDL_PollEvent(ctypes.byref(event)) != 0:
             if event.type == SDL_QUIT:
-                running = False
                 return
             elif event.type == SDL_MOUSEBUTTONDOWN:
                 butx, buty = event.button.x, event.button.y
+                # Check piano clicking
                 pressed_piano_key = calc_piano_key_pressed(butx, buty)
                 if pressed_piano_key != -1:
                     note = calc_piano_key(pressed_piano_key)
-                    sound = calculate_sound(TESTVECTOR, note)
+                    sound = calculate_sound(wheel[wheel_highlight][1], note)
                     piano_sound_queue.insert(0, [sound, pressed_piano_key, 0])
                     piano_sound_queue[0][0].play(-1)
+                # Check clicking on wheel TODO 
+                new_highlight = calc_wheel_click(butx, buty, wheel)
+                if new_highlight != -1: wheel_highlight = new_highlight
 
         if len(piano_sound_queue) != 0:
             if piano_sound_queue[-1][2] < SOUND_FRAME_DURATION:
@@ -139,12 +219,13 @@ def loop(renderer):
 
         clear_screen(renderer)
         draw_piano(renderer, piano_sound_queue)
+        draw_wheel(renderer, wheel, wheel_highlight)
         SDL_RenderPresent(renderer)
         SDL_Delay(FRAME_DURATION)
 
 def main():
     SDL_Init(SDL_INIT_VIDEO)
-    window = SDL_CreateWindow(b"timbre", SDL_WINDOWPOS_CENTERED, 
+    window = SDL_CreateWindow(b"Timbreline", SDL_WINDOWPOS_CENTERED, 
                             SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, 
                             WINDOW_HEIGHT, SDL_WINDOW_SHOWN)
     rend_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC
