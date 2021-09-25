@@ -1,9 +1,9 @@
 import math, random
 import numpy as np
 
-threshold = 0.01
+threshold = 0.15
 num_overtones = 8
-num_neighbors = 8
+num_neighbors = 8 # please don't change this
 
 def calculate_neighbors(center, radius):
     # re = [center]
@@ -13,13 +13,17 @@ def calculate_neighbors(center, radius):
     #             [max(center[j] - (radius if i == j else 0), 0) for j in range(4)]]
     # return re
 
-    re = [[c for c in center]]
+    re = []
+    new_center = center.copy()
     if radius > threshold: 
-        for i in range(len(center)):
-            if center[i] + radius - 1 > 0: center[i] -= (center[i] + radius - 1) 
-            elif center[i] - radius < 0: center[i] -= (center[i] - radius)
-        for _ in range(num_neighbors):
-            re.append([c+random.random() * radius for c in center])
+        for i in range(len(new_center)):
+            if center[i] + radius - 1 > 0: new_center[i] -= (center[i] + radius - 1) 
+            elif center[i] - radius < 0: new_center[i] -= (center[i] - radius)
+        #for _ in range(num_neighbors):
+            #re.append([c+random.random() * radius for c in new_center])
+        corners = [[-1,-1,-1,-1], [1,1,1,1], [1,1,-1,-1], [1,-1,1,-1], [1,-1,-1,1], [-1,1,1,-1], [-1,1,-1,1], [-1,-1,1,1]]
+        for c in corners:
+            re.append([new_center[i] + (radius * c[i]) for i in range(4)])
     return re
     
 

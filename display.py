@@ -1,7 +1,7 @@
 import ctypes
 from sdl2 import *
 from audio import calculate_sound 
-from calculations import calculate_neighbors
+import calculations 
 from random import random
 import math 
 
@@ -9,7 +9,7 @@ RADIUS_FACTOR = 0.8
 
 WINDOW_HEIGHT = 860
 WINDOW_WIDTH = 1000
-BGCOLOR = [0, 100, 255]
+BGCOLOR = [240, 240, 240]
 
 # PIANO STUFF
 PIANO_LOCATION = [120, 600]
@@ -26,8 +26,6 @@ NUM_OCTAVES = 2
 FRAME_DURATION = 60 # in milliseconds
 SOUND_FRAME_DURATION = int(0.35 * (1000 / FRAME_DURATION))
 
-TESTVECTOR = [random(), random(), random(), random()]
-
 # Spokes
 NUM_NEIGHBORS = 8
 NEIGHBOR_RADIUS = 30
@@ -39,8 +37,13 @@ WHEEL_RADIUS = 150
 HIGHLIGHT_COLOR = [192, 243, 27]
 HIGHLIGHT_EXTRA_RADIUS = 20
 
-NEW_NEIGHBORS = (50, 50, 200, 150)
+# Buttons
+NEW_NEIGHBORS = (WINDOW_WIDTH // 2 + 150, 50, 100, 34)
 NEW_NEIGHBORS_COLOR = [200, 150, 20]
+BACK_BUTTON = (WINDOW_WIDTH // 2 - 150 - 100, 50, 100, 34)
+BACK_BUTTON_COLOR = [50, 50, 200]
+
+TRIANGLE_BOX_DIMENSIONS = [75, 75]
 
 def color_of_feature_vector(feature_vector):
     not_first_fv = feature_vector[1:]
@@ -71,15 +74,24 @@ def generate_neighbors_list(wheel_focus, radius):
     """
     wheel_vector = wheel_focus[1]
     neighbors = []
-    angle_increment = math.radians(360 / NUM_NEIGHBORS)
+    angle_increment = math.radians(360 / calculations.num_neighbors)
     fx, fy, _ = WHEEL_FOCUS
-    vector_neighbors = calculate_neighbors(wheel_vector, radius)
-    for i in range(NUM_NEIGHBORS):
+    vector_neighbors = calculations.calculate_neighbors(wheel_vector, radius)
+    if len(vector_neighbors) < calculations.num_neighbors:
+        return []
+    for i in range(calculations.num_neighbors):
         angle = angle_increment * i
         x = int(WHEEL_RADIUS * math.cos(angle)) + fx
         y = int(WHEEL_RADIUS * math.sin(angle)) + fy
         neighbors.append([(x, y, NEIGHBOR_RADIUS), vector_neighbors[i]])
     return neighbors
+
+def triangle_rect_of_button(button_rec, is_left):
+    x, y, w, h = button_rec
+    tw, th = TRIANGLE_BOX_DIMENSIONS
+    ty = y - ((th - h) // 2)
+    tx = x - tw + 1 if is_left else x + w
+    return (tx, ty, tw, th)
 
 def in_rect(rec, clickx, clicky):
     x, y, w, h = rec
@@ -126,6 +138,39 @@ def fill_rect(renderer, rec, color):
     r, g, b = color
     SDL_SetRenderDrawColor(renderer, r, g, b, 255) # black border
     SDL_RenderFillRect(renderer, SDL_Rect(x, y, w, h))
+
+def in_triangle(tx, ty, radius, x, y, is_left):
+    if abs(x - tx) > radius or abs(y - ty) > radius: return False
+    if is_left:
+        x = 2 * tx - x
+    if y < ty:
+        y = 2 * ty - y
+    return y - ty <= 0.5 * (tx + radius - x)
+    
+def in_arrow(rec, clickx, clicky, is_left):
+    tx, ty, tw, th = triangle_rect_of_button(rec, is_left)
+    r = tw // 2
+    return in_rect(rec, clickx, clicky) or \
+           in_triangle(tx + r, ty + r, r, clickx, clicky, is_left)
+
+def fill_triangle(renderer, rec, color, is_left):
+    """ Assumes square """
+    tx, ty, tw, th  = triangle_rect_of_button(rec, is_left)
+    radius = tw // 2
+    r, g, b = color
+    diameter = radius * 2
+    centerx, centery = tx + radius, ty + radius
+    for x in range(diameter):
+        for y in range(diameter):
+            drawx, drawy = x + tx, y + ty
+            if in_triangle(centerx, centery, radius, drawx, drawy, is_left):
+                SDL_SetRenderDrawColor(renderer, r, g, b, 255) 
+                drawpixel(renderer, drawx, drawy)
+
+def fill_arrow(renderer, rec, color, is_left):
+    fill_rect(renderer, rec, color)
+    fill_triangle(renderer, rec, color, is_left)
+
 
 def fill_piano_rect(renderer, x, y, is_white, is_played):
     w, h = WHITE_KEY_DIMS if is_white else BLACK_KEY_DIMS
@@ -188,7 +233,8 @@ def calc_piano_key_pressed(x, y):
     for i in range(1, numkeys, 2):
         piano_key_x = calc_piano_key_x(i, 0)
         if i % 14 not in [5, 13]:
-            if piano_key_x + BLACK_KEY_DIMS[0] > x >= piano_key_x and y < BLACK_KEY_DIMS[1]:
+            if piano_key_x + BLACK_KEY_DIMS[0] > x >= piano_key_x and \
+                                                        y < BLACK_KEY_DIMS[1]:
                 if i == numkeys - 1 or x < calc_piano_key_x(i + 2, 0):
                     blackkey = i
     return blackkey if blackkey != -1 else whitekey
@@ -221,6 +267,7 @@ def loop(renderer):
     wheel = [wheel_focus] + neighbors
     waveform_matrix = create_waveform_matrix(wheel)
     wheel_highlight = 0
+    previous_vectors = []
     while True:
         while SDL_PollEvent(ctypes.byref(event)) != 0:
             if event.type == SDL_QUIT:
@@ -231,7 +278,8 @@ def loop(renderer):
                 pressed_piano_key = calc_piano_key_pressed(butx, buty)
                 if pressed_piano_key != -1:
                     note = calc_piano_key(pressed_piano_key)
-                    sound = waveform_lookup(waveform_matrix, wheel, wheel_highlight, note)
+                    sound = waveform_lookup(waveform_matrix, wheel,  \
+                                                    wheel_highlight, note)
                     piano_sound_queue.insert(0, [sound, pressed_piano_key, 0])
                     piano_sound_queue[0][0].play(-1)
 
@@ -240,26 +288,38 @@ def loop(renderer):
                 if new_highlight != -1: wheel_highlight = new_highlight
 
                 # Check buttons
-                if in_rect(NEW_NEIGHBORS, butx, buty):
+                if in_arrow(NEW_NEIGHBORS, butx, buty, False) and \
+                                                                len(wheel) > 1:
+                    previous_vectors.append(wheel_focus[1])
                     radius *= RADIUS_FACTOR
                     wheel_focus = focus_of_vec(wheel[wheel_highlight][1])
                     neighbors = generate_neighbors_list(wheel_focus, radius)
                     wheel = [wheel_focus] + neighbors
                     waveform_matrix = create_waveform_matrix(wheel)
+                    wheel_highlight = 0
+                elif in_arrow(BACK_BUTTON, butx, buty, True) and \
+                                                    len(previous_vectors) > 0:
+                    new_center_vec = previous_vectors.pop()
+                    radius /= RADIUS_FACTOR
+                    wheel_focus = focus_of_vec(new_center_vec)
+                    neighbors = generate_neighbors_list(wheel_focus, radius)
+                    wheel = [wheel_focus] + neighbors
+                    waveform_matrix = create_waveform_matrix(wheel)
+                    wheel_highlight = 0
 
-                
-
-        if len(piano_sound_queue) != 0:
-            if piano_sound_queue[-1][2] < SOUND_FRAME_DURATION:
-                piano_sound_queue[-1][2] += 1
-            else:
-                piano_sound_queue[-1][0].stop()
-                piano_sound_queue.pop()
+        for i in range(len(piano_sound_queue)):
+            if piano_sound_queue[i][2] < SOUND_FRAME_DURATION:
+                piano_sound_queue[i][2] += 1
+        while len(piano_sound_queue) > 0 and \
+                    piano_sound_queue[-1][2] >= SOUND_FRAME_DURATION:
+            piano_sound_queue[-1][0].stop()
+            piano_sound_queue.pop()
 
         clear_screen(renderer)
         draw_piano(renderer, piano_sound_queue)
         draw_wheel(renderer, wheel, wheel_highlight)
-        fill_rect(renderer, NEW_NEIGHBORS, NEW_NEIGHBORS_COLOR)
+        fill_arrow(renderer, NEW_NEIGHBORS, NEW_NEIGHBORS_COLOR, False)
+        fill_arrow(renderer, BACK_BUTTON, BACK_BUTTON_COLOR, True)
         SDL_RenderPresent(renderer)
         SDL_Delay(FRAME_DURATION)
 
