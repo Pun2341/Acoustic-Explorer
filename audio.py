@@ -10,6 +10,7 @@ pygame.mixer.init(channels=1)
 sample_rate = 44100
 volume = 4096
 duration = 1
+double_mixer = False
 
 def sine_wave(hz, peak, n_samples=sample_rate):
     """Compute N samples of a sine wave with given frequency and peak amplitude.
@@ -23,10 +24,9 @@ def sine_wave(hz, peak, n_samples=sample_rate):
 
 def calculate_waveform(intensities, envelope, note):
     pitch = 261.6*math.pow(2, note/12)
-    waveform = sine_wave(pitch, volume)
-    #print(">",intensities)
-    for i in range(len(intensities)):
-        waveform = np.add(waveform, sine_wave(pitch * (i+2), volume * intensities[i]))
+    waveform = sine_wave(pitch, volume * intensities[0])
+    for i in range(1,len(intensities)):
+        waveform = np.add(waveform, sine_wave(pitch * (i+1), volume * intensities[i]))
     #waveform = (waveform*volume)//max(abs(waveform))
     waveform = np.array([int(envelope(i/len(waveform)) * waveform[i]) for i in range(len(waveform))])
     return waveform
@@ -39,9 +39,10 @@ def calculate_waveform(intensities, envelope, note):
 #    sound.stop()
 
 def calculate_sound(v, note):
-    intensities, envelope = calculations.overtones_from_vec(v)
-    waveform = calculate_waveform(intensities, note)
-    sound = pygame.sndarray.make_sound(np.array([(a,a) for a in waveform]))
+    intensities, envelope = calculations.calculate_intensities(v)
+    waveform = calculate_waveform(intensities, envelope, note)
+    if double_mixer: waveform = np.array([(a,a) for a in waveform])
+    sound = pygame.sndarray.make_sound(waveform)
     return sound
     
     	
@@ -63,7 +64,3 @@ if __name__ == "__main__":
     axs[0].plot(w)
     axs[1].bar(range(len(i)+1), [1]+i)
     plt.show()
-
-#play_pitches([0,4,7,12],1)
-#play_pitches([11,14,7,19],1)
-#play_pitches([1,2,3,4,5,6,7],1)
