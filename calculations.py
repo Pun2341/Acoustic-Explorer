@@ -2,7 +2,7 @@ import math
 import numpy as np
 
 threshold = 0.01
-num_overtones = 40
+num_overtones = 8
 
 def neighbors(center, radius):
     re = [center]
@@ -31,15 +31,17 @@ def calculate_intensities(v):
     #     [1/(n+1) if n % 4 == 0 else 0 for n in range(num_overtones)]])
     # return np.matmul(v, basis)
 
-    intensities = []
+    depth_vector = [1/(i+1) for i in range(num_overtones)]
+    even_depth_vector = [1/(i+1) if i % 2 == 0 else 0 for i in range(num_overtones)]
+    reedy_vector = [0.3 if i == 6 or i == 9 else (0.4 if i == 7 or i == 8 else 0) for i in range(num_overtones)]
+    matrix = np.array([depth_vector, even_depth_vector, reedy_vector])
+    intensities = np.matmul(v[1:], matrix)
 
     a = 0.001 + 0.8*v[0]
     envelope = lambda x: (x/a if x < a else (1-x)/(1-a))
     return intensities, envelope
 
-
-
-def neighbor_test():
+if __name__ == "__main__":
     center = [0]*4
     radius = 1
     centers = neighbors(center, radius)
@@ -50,5 +52,3 @@ def neighbor_test():
         radius = radius / 2
         centers = neighbors(centers[i], radius)
     print(centers)
-
-#print(overtones_from_vec([0.5,0.5,0.5,0.5]))

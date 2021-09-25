@@ -47,20 +47,22 @@ def calculate_sound(v, note):
     
     	
 if __name__ == "__main__":
-    #i = list(calculations.overtones_from_vec([1,0,0,1]))
+    i,e = list(calculations.calculate_intensities([0.4,1,1,0]))
+    print(i)
+    #i = [1, 0,0.5,0,0.05,0,0.2,0.4,0.43,0.48,0,0.1,0.05] # clarinet
     #print(i)
-    #i = [0,0.5,0,0.05,0,0.2,0.4,0.43,0.48,0,0.1,0.05] # clarinet
-    i = [0.5, 0.2, 0.21, 0.07, 0.41] # 0.07, 0.3, 0.1, 0.1, 0.03, 0.04, 0.04] #piano?
-    #i = [0.4, 0.15, 0.1, 0.1, 0.1] # violin?
-    a = 0.001
-    def e(x): 
-        if x < a: return x/a
-        return (1-x)/(1-a)
+    #i = [1, 0.5, 0.2, 0.21, 0.07] #0.41] # 0.07, 0.3, 0.1, 0.1, 0.03, 0.04, 0.04] #piano?
+    #i = [1, 0.4, 0.15, 0.1, 0.1, 0.05] # violin?
+    #i = [1/j for j in range(1,6)]
+    # a = 0.001
+    # def e(x): 
+    #     if x < a: return x/a
+    #     return (1-x)/(1-a)
     w = calculate_waveform(i, e, 0)
     print(w)
     sound = pygame.sndarray.make_sound(np.array([(a,a) for a in w]))
     sound.play(-1)
     _, axs = plt.subplots(2)
     axs[0].plot(w)
-    axs[1].bar(range(len(i)+1), [1]+i)
+    axs[1].bar(range(len(i)), i)
     plt.show()
