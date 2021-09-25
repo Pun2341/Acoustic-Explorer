@@ -10,6 +10,7 @@ pygame.mixer.init(channels=1)
 sample_rate = 44100
 volume = 4096
 duration = 1
+double_mixer = True
 
 def sine_wave(hz, peak, n_samples=sample_rate):
     """Compute N samples of a sine wave with given frequency and peak amplitude.
@@ -21,13 +22,13 @@ def sine_wave(hz, peak, n_samples=sample_rate):
     onecycle = peak * np.sin(xvalues)
     return np.resize(onecycle, (n_samples,)).astype(np.int16)
 
-def calculate_waveform(intensities, note):
+def calculate_waveform(intensities, envelope, note):
     pitch = 261.6*math.pow(2, note/12)
-    waveform = sine_wave(pitch, volume)
-    #print(">",intensities)
-    for i in range(len(intensities)):
-        waveform = np.add(waveform, sine_wave(pitch * (i+2), volume * intensities[i]))
+    waveform = sine_wave(pitch, volume * intensities[0])
+    for i in range(1,len(intensities)):
+        waveform = np.add(waveform, sine_wave(pitch * (i+1), volume * intensities[i]))
     #waveform = (waveform*volume)//max(abs(waveform))
+    waveform = np.array([int(envelope(i/len(waveform)) * waveform[i]) for i in range(len(waveform))])
     return waveform
 
 #def play_for(sample_wave, ms):
@@ -38,23 +39,30 @@ def calculate_waveform(intensities, note):
 #    sound.stop()
 
 def calculate_sound(v, note):
-    intensities = calculations.overtones_from_vec(v)
-    waveform = calculate_waveform(intensities, note)
+    intensities, envelope = calculations.calculate_intensities(v)
+    waveform = calculate_waveform(intensities, envelope, note)
+    if double_mixer: waveform = np.array([(a,a) for a in waveform])
     sound = pygame.sndarray.make_sound(waveform)
     return sound
     
     	
 if __name__ == "__main__":
-    i = list(calculations.overtones_from_vec([1,0,0,1]))
+    i,e = list(calculations.calculate_intensities([0.4,1,1,0]))
     print(i)
-    w = calculate_waveform(i, 0)
+    #i = [1, 0,0.5,0,0.05,0,0.2,0.4,0.43,0.48,0,0.1,0.05] # clarinet
+    #print(i)
+    #i = [1, 0.5, 0.2, 0.21, 0.07] #0.41] # 0.07, 0.3, 0.1, 0.1, 0.03, 0.04, 0.04] #piano?
+    #i = [1, 0.4, 0.15, 0.1, 0.1, 0.05] # violin?
+    #i = [1/j for j in range(1,6)]
+    # a = 0.001
+    # def e(x): 
+    #     if x < a: return x/a
+    #     return (1-x)/(1-a)
+    w = calculate_waveform(i, e, 0)
     print(w)
-    play_for(w, int(1000*duration))
+    sound = pygame.sndarray.make_sound(np.array([(a,a) for a in w]))
+    sound.play(-1)
     _, axs = plt.subplots(2)
-    axs[0].plot(w[:324])
-    axs[1].bar(range(len(i)+1), [1]+i)
+    axs[0].plot(w)
+    axs[1].bar(range(len(i)), i)
     plt.show()
-
-#play_pitches([0,4,7,12],1)
-#play_pitches([11,14,7,19],1)
-#play_pitches([1,2,3,4,5,6,7],1)
