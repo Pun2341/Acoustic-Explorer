@@ -1,7 +1,7 @@
 import math
 
 threshold = 0.01
-num_overtones = 6
+num_overtones = 20
 
 def neighbors(center, radius):
     re = [center]
@@ -24,7 +24,7 @@ def overtones_from_vec(v):
     return re
 
 def neighbor_test():
-    center = [0]*5
+    center = [0]*4
     radius = 1
     centers = neighbors(center, radius)
     while(len(centers) > 1):
@@ -35,4 +35,4 @@ def neighbor_test():
         centers = neighbors(centers[i], radius)
     print(centers)
 
-print(overtones_from_vec([0.5,0.5,0.5,0.5,0.5]))
+#print(overtones_from_vec([0.5,0.5,0.5,0.5]))

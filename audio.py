@@ -1,6 +1,7 @@
 import numpy as np
 import math
 import pygame, pygame.sndarray
+import matplotlib.pyplot as plt
 
 import calculations
 
@@ -30,12 +31,20 @@ def sine_wave(hz, peak, n_samples=sample_rate):
 def waveform(intensities, note):
     pitch = 261.6*math.pow(2, note/12)
     waveform = sine_wave(pitch, volume)
+    #print(">",intensities)
     for i in range(len(intensities)):
         waveform = np.add(waveform, sine_wave(pitch * (i+2), volume * intensities[i]))
-    print(waveform)
+    #waveform = (waveform*volume)//max(abs(waveform))
     return waveform
     	
-play_for(waveform(calculations.overtones_from_vec([0.5,0.5,0.9,0.5,0.5]), 0),int(1000*duration))
+i = calculations.overtones_from_vec([0.5,0.5,0.6,0.5])
+w = waveform(i, 0)
+play_for(w,int(1000*duration))
+_, axs = plt.subplots(2)
+axs[0].plot(w[:324])
+axs[1].bar(range(len(i)+1), [1]+i)
+plt.show()
+
 #play_pitches([0,4,7,12],1)
 #play_pitches([11,14,7,19],1)
 #play_pitches([1,2,3,4,5,6,7],1)
