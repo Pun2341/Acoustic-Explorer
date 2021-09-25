@@ -11,13 +11,6 @@ sample_rate = 44100
 volume = 4096
 duration = 1
 
-def play_for(sample_wave, ms):
-    """Play the given NumPy array, as a sound, for ms milliseconds."""
-    sound = pygame.sndarray.make_sound(np.array([(a,a) for a in sample_wave]))
-    sound.play(-1)
-    pygame.time.delay(ms)
-    sound.stop()
-
 def sine_wave(hz, peak, n_samples=sample_rate):
     """Compute N samples of a sine wave with given frequency and peak amplitude.
        Defaults to one second.
@@ -28,7 +21,7 @@ def sine_wave(hz, peak, n_samples=sample_rate):
     onecycle = peak * np.sin(xvalues)
     return np.resize(onecycle, (n_samples,)).astype(np.int16)
 
-def waveform(intensities, note):
+def calculate_waveform(intensities, note):
     pitch = 261.6*math.pow(2, note/12)
     waveform = sine_wave(pitch, volume)
     #print(">",intensities)
@@ -37,18 +30,30 @@ def waveform(intensities, note):
     #waveform = (waveform*volume)//max(abs(waveform))
     return waveform
 
-def play(v, note): 
-    play_for(waveform(calculations.overtones_from_vec(v),note), int(1000*duration))
+#def play_for(sample_wave, ms):
+#    """Play the given NumPy array, as a sound, for ms milliseconds."""
+#    sound = pygame.sndarray.make_sound(np.array([(a,a) for a in sample_wave]))
+#    sound.play(-1)
+#    pygame.time.delay(ms)
+#    sound.stop()
+
+def calculate_sound(v, note):
+    intensities = calculations.overtones_from_vec(v)
+    waveform = calculate_waveform(intensities, note)
+    sound = pygame.sndarray.make_sound(waveform)
+    return sound
+    
     	
-i = list(calculations.overtones_from_vec([1,0,0,1]))
-print(i)
-w = waveform(i, 0)
-print(w)
-play_for(w, int(1000*duration))
-_, axs = plt.subplots(2)
-axs[0].plot(w[:324])
-axs[1].bar(range(len(i)+1), [1]+i)
-plt.show()
+if __name__ == "__main__":
+    i = list(calculations.overtones_from_vec([1,0,0,1]))
+    print(i)
+    w = calculate_waveform(i, 0)
+    print(w)
+    play_for(w, int(1000*duration))
+    _, axs = plt.subplots(2)
+    axs[0].plot(w[:324])
+    axs[1].bar(range(len(i)+1), [1]+i)
+    plt.show()
 
 #play_pitches([0,4,7,12],1)
 #play_pitches([11,14,7,19],1)
