@@ -18,6 +18,9 @@ WHITE_KEY_DIMS = [50, 200]
 BLACK_KEY_DIMS = [30, 110]
 NUM_OCTAVES = 2
 
+FRAME_DURATION = 60 # in milliseconds
+SOUND_FRAME_DURATION = int(0.4 * (1000 / FRAME_DURATION))
+
 # INT TO PIANO KEY MAPPING:
 #  0 is C, from then on all evens are white keys 
 #   and odds are black keys. Cannot be higher than 12.
@@ -26,22 +29,23 @@ NUM_OCTAVES = 2
 # So, need to return x but subtract given 5 and 13
 # This returns the number of half-steps up x is
 def piano_key_of_int(x):
-    # we'll subtract 2 for each octave (which contains 2 non-notes)
     octave_num = x // 14
     octave_x = x % 14
-    assert octave_x != 5 and octave_x != 13, "input can't be 5 or 13"
-    # also 1 for 5, and 1 for 13
-    if octave_x > 13:
-        x -= 1
-    if octave_x > 5:
-        x -= 1
-    x -= octave_num * 2
-    return x
+    assert octave_x != 5 and octave_x != 13, "input can't be note 5 or 13"
+    key = x
+    # We'll subtract 2 for each octave (which contains 2 non-notes)
+    # Also subtract 1 if above 13 and 1 if above 5
+    key -= (octave_num * 2) + int(octave_x > 13) + int(octave_x > 5)
+    return key
+
+def play_note(x):
+    key = piano_key_of_int(x)
+    # TODO: THIS IS A PLACEHOLDER
+    print("Playing", "cCdDefFgGaAb"[key % 12] + str(key // 12))
 
 def clear_screen(renderer):
     SDL_SetRenderDrawColor(renderer, BGCOLOR[0], BGCOLOR[1], BGCOLOR[2], 255);
     SDL_RenderClear(renderer);
-
 
 def fill_piano_rect(renderer, x, y, is_white, is_played):
     w, h = WHITE_KEY_DIMS if is_white else BLACK_KEY_DIMS
@@ -110,6 +114,7 @@ def calc_piano_key_pressed(x, y):
     return blackkey if blackkey != -1 else whitekey
 
 def loop(renderer):
+    piano_press_frame = 0
     pressed_piano_key = -1
     event = SDL_Event()
     while True:
@@ -120,11 +125,19 @@ def loop(renderer):
             elif event.type == SDL_MOUSEBUTTONDOWN:
                 butx, buty = event.button.x, event.button.y
                 pressed_piano_key = calc_piano_key_pressed(butx, buty)
+                piano_press_frame = 0
+                play_note(pressed_piano_key)
+
+        if piano_press_frame < SOUND_FRAME_DURATION:
+            piano_press_frame += 1
+        elif pressed_piano_key != -1:
+            pressed_piano_key = -1
+            print("done playing")
 
         clear_screen(renderer)
         draw_piano(renderer, pressed_piano_key)
         SDL_RenderPresent(renderer)
-        SDL_Delay(50)
+        SDL_Delay(FRAME_DURATION)
 
 def main():
     SDL_Init(SDL_INIT_VIDEO)
