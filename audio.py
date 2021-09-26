@@ -38,12 +38,15 @@ def calculate_waveform(intensities, envelope, note):
 #    pygame.time.delay(ms)
 #    sound.stop()
 
-def calculate_sound(v, note):
+def calculate_waveform_from_vec(v, note):
     intensities, envelope = calculations.calculate_intensities(v)
     waveform = calculate_waveform(intensities, envelope, note)
     #if double_mixer: waveform = np.array([(a,a) for a in waveform])
     #else:
     waveform = np.array([np.int32(a) for a in waveform])
+    return waveform
+
+def calculate_sound(waveform):
     sound = pygame.sndarray.make_sound(waveform)
     return sound
     

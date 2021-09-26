@@ -1,22 +1,23 @@
 import ctypes
 from sdl2 import *
-from audio import calculate_sound 
+from audio import calculate_sound, calculate_waveform_from_vec
 import calculations 
 from random import random
 import math 
+
 
 RADIUS_FACTOR = 0.8
 
 WINDOW_HEIGHT = 860
 WINDOW_WIDTH = 1000
-BGCOLOR = [240, 240, 240]
+BGCOLOR = [230, 230, 230]
 
 # PIANO STUFF
-PIANO_LOCATION = [120, 600]
+PIANO_LOCATION = [120, 620]
 
 WHITE_PIANO_COLOR = [255, 255, 255]
 BLACK_PIANO_COLOR = [0, 0, 0]
-PLAYED_PIANO_COLOR = [160, 180, 20]
+PLAYED_PIANO_COLOR = [120, 120, 222]
 
 # Width is first in dim
 WHITE_KEY_DIMS = [50, 200]
@@ -30,7 +31,7 @@ SOUND_FRAME_DURATION = int(0.35 * (1000 / FRAME_DURATION))
 NUM_NEIGHBORS = 8
 NEIGHBOR_RADIUS = 30
 # Circles will be a tuple (x, y, r)
-WHEEL_FOCUS = (WINDOW_WIDTH // 2, 300, 30)
+WHEEL_FOCUS = (WINDOW_WIDTH // 2, 380, 30)
 # Wheel will be a list of [c, v] where c is a circle and v a feature vector
 WHEEL_RADIUS = 150
 
@@ -38,12 +39,15 @@ HIGHLIGHT_COLOR = [192, 243, 27]
 HIGHLIGHT_EXTRA_RADIUS = 20
 
 # Buttons
-NEW_NEIGHBORS = (WINDOW_WIDTH // 2 + 150, 50, 100, 34)
-NEW_NEIGHBORS_COLOR = [200, 150, 20]
-BACK_BUTTON = (WINDOW_WIDTH // 2 - 150 - 100, 50, 100, 34)
+NEW_NEIGHBORS = (WINDOW_WIDTH // 2 + 250, 170, 100, 34)
+NEW_NEIGHBORS_COLOR = [50, 50, 200]
+BACK_BUTTON = (WINDOW_WIDTH // 2 - 250 - 100, 170, 100, 34)
 BACK_BUTTON_COLOR = [50, 50, 200]
 
 TRIANGLE_BOX_DIMENSIONS = [75, 75]
+
+# Back stack
+STACK_DIMS = [0, 0, WINDOW_WIDTH, 50]
 
 def color_of_feature_vector(feature_vector):
     not_first_fv = feature_vector[1:]
@@ -239,6 +243,14 @@ def calc_piano_key_pressed(x, y):
                     blackkey = i
     return blackkey if blackkey != -1 else whitekey
 
+def draw_stack(renderer, backstack):
+    if len(backstack) == 0: return
+    x, y, w, h = STACK_DIMS
+    individual_width = w // len(backstack)
+    for i in range(len(backstack)):
+        rec = (x + (i * individual_width), y, individual_width, h)
+        fill_rect(renderer, rec, color_of_feature_vector(backstack[i]))
+
 def calc_wheel_click(clickx, clicky, wheel):
     for i in range(len(wheel)):
         centerx, centery, r = wheel[i][0]
@@ -253,9 +265,9 @@ def create_waveform_matrix(wheel):
     return [[None for n in range(12 * NUM_OCTAVES)] for w in range(len(wheel))]
 
 def waveform_lookup(wv_mat, wheel, w, n):
-    if wv_mat[w][n] == None:
-        wv_mat[w][n] = calculate_sound(wheel[w][1], n)
-    return wv_mat[w][n]
+    if wv_mat[w][n] is None:
+        wv_mat[w][n] = calculate_waveform_from_vec(wheel[w][1], n)
+    return calculate_sound(wv_mat[w][n])
 
 def loop(renderer):
     radius = 0.5
@@ -267,7 +279,7 @@ def loop(renderer):
     wheel = [wheel_focus] + neighbors
     waveform_matrix = create_waveform_matrix(wheel)
     wheel_highlight = 0
-    previous_vectors = []
+    previous_vectors = [wheel_focus[1]]
     while True:
         while SDL_PollEvent(ctypes.byref(event)) != 0:
             if event.type == SDL_QUIT:
@@ -290,7 +302,7 @@ def loop(renderer):
                 # Check buttons
                 if in_arrow(NEW_NEIGHBORS, butx, buty, False) and \
                                                                 len(wheel) > 1:
-                    previous_vectors.append(wheel_focus[1])
+                    previous_vectors.append(wheel[wheel_highlight][1])
                     radius *= RADIUS_FACTOR
                     wheel_focus = focus_of_vec(wheel[wheel_highlight][1])
                     neighbors = generate_neighbors_list(wheel_focus, radius)
@@ -298,7 +310,7 @@ def loop(renderer):
                     waveform_matrix = create_waveform_matrix(wheel)
                     wheel_highlight = 0
                 elif in_arrow(BACK_BUTTON, butx, buty, True) and \
-                                                    len(previous_vectors) > 0:
+                                                    len(previous_vectors) > 1:
                     new_center_vec = previous_vectors.pop()
                     radius /= RADIUS_FACTOR
                     wheel_focus = focus_of_vec(new_center_vec)
@@ -320,6 +332,7 @@ def loop(renderer):
         draw_wheel(renderer, wheel, wheel_highlight)
         fill_arrow(renderer, NEW_NEIGHBORS, NEW_NEIGHBORS_COLOR, False)
         fill_arrow(renderer, BACK_BUTTON, BACK_BUTTON_COLOR, True)
+        draw_stack(renderer, previous_vectors)
         SDL_RenderPresent(renderer)
         SDL_Delay(FRAME_DURATION)
 
